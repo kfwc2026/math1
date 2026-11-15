@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>分數 × 整數 圖示器</title>
+<style>
+  :root{
+    --purple:#7c3aed;
+    --ink:#0f172a;
+    --muted:#64748b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:30px 16px 60px;
+    display:flex;
+    justify-content:center;
+    background:
+      radial-gradient(1100px 550px at 8% -12%, #dbeafe, transparent 65%),
+      radial-gradient(900px 500px at 105% 5%, #fce7f3, transparent 60%),
+      #f8fafc;
+  }
+  .app{width:100%;max-width:920px;}
+  h1{font-size:clamp(22px,3.6vw,30px);margin:0 0 8px;letter-spacing:.5px;}
+  .sub{margin:0 0 24px;color:var(--muted);font-size:14.5px;line-height:1.9;}
+  .sub b{color:var(--purple);}
+
+  .card{
+    background:#fff;
+    border-radius:18px;
+    padding:20px;
+    box-shadow:0 10px 30px -12px rgba(15,23,42,.18), 0 2px 6px -2px rgba(15,23,42,.06);
+    border:1px solid rgba(148,163,184,.22);
+  }
+
+  /* ===== 分數（HTML 用） ===== */
+  .frac{
+    display:inline-flex;
+    flex-direction:column;
+    align-items:center;
+    vertical-align:middle;
+    line-height:1.05;
+    margin:0 3px;
+    font-weight:800;
+    font-size:0.92em;
+    color:inherit;
+  }
+  .frac .num{
+    padding:0 4px 1px;
+    border-bottom:1.8px solid currentColor;
+    text-align:center;
+    min-width:1.15em;
+  }
+  .frac .den{
+    padding:1px 4px 0;
+    text-align:center;
+    min-width:1.15em;
+  }
+  .mixed{
+    display:inline-flex;
+    align-items:center;
+    vertical-align:middle;
+    gap:3px;
+  }
+  .mixed > .whole{font-weight:800;}
+
+  /* ===== 題目 + 答案 ===== */
+  .expr-card{
+    display:flex;align-items:center;justify-content:center;
+    gap:clamp(10px,2.6vw,24px);flex-wrap:wrap;
+    padding:24px 18px;margin-bottom:16px;
+  }
+  .frac-input{display:flex;flex-direction:column;align-items:center;}
+  .frac-input input{
+    width:60px;height:44px;text-align:center;
+    font-size:21px;font-weight:800;color:var(--ink);
+    border:2px solid #cbd5e1;border-radius:12px;background:#fff;
+    outline:none;transition:.15s;
+    -moz-appearance:textfield;
+  }
+  .frac-input input::-webkit-outer-spin-button,
+  .frac-input input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .frac-input input:focus{border-color:#6366f1;box-shadow:0 0 0 4px rgba(99,102,241,.18);}
+  .frac-input input::placeholder{color:#cbd5e1;font-weight:600;}
+  .frac-input .line{width:66px;height:3.5px;background:var(--ink);border-radius:2px;margin:4px 0;}
+
+  .frac-input.ans input{background:#f5f3ff;border-color:#c4b5fd;}
+  .frac-input.ans input:focus{border-color:#8b5cf6;box-shadow:0 0 0 4px rgba(139,92,246,.2);}
+  .frac-input.ans .line{background:var(--purple);}
+
+  .int-input{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .int-input input{
+    width:70px;height:44px;text-align:center;
+    font-size:21px;font-weight:800;color:var(--ink);
+    border:2px solid #cbd5e1;border-radius:12px;background:#fff;
+    outline:none;transition:.15s;
+    -moz-appearance:textfield;
+  }
+  .int-input input::-webkit-outer-spin-button,
+  .int-input input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .int-input input:focus{border-color:#6366f1;box-shadow:0 0 0 4px rgba(99,102,241,.18);}
+  .int-input input::placeholder{color:#cbd5e1;font-weight:600;}
+  .int-input .int-label{font-size:12px;color:#94a3b8;font-weight:700;letter-spacing:1px;}
+
+  .op{font-size:30px;font-weight:700;color:#64748b;line-height:1;}
+
+  /* ===== 按鈕 ===== */
+  .actions{display:flex;gap:12px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;}
+  .btn{
+    border:none;border-radius:12px;padding:12px 28px;
+    font-size:16px;font-weight:800;cursor:pointer;transition:.15s;
+    font-family:inherit;
+  }
+  .btn-primary{
+    background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+    box-shadow:0 6px 16px -6px rgba(99,102,241,.7);
+  }
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 10px 20px -8px rgba(99,102,241,.8);}
+  .btn-primary:active{transform:translateY(0);}
+  .btn-ghost{background:#eef2ff;color:#4338ca;}
+  .btn-ghost:hover{background:#e0e7ff;}
+
+  /* ===== 回饋 ===== */
+  .feedback{
+    display:none;margin:0 0 18px;padding:13px 18px;border-radius:13px;
+    font-weight:700;font-size:15px;line-height:1.9;
+  }
+  .feedback.show{display:block;animation:pop .22s ease;}
+  @keyframes pop{from{transform:scale(.97);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .feedback.ok{background:#dcfce7;color:#15803d;border:1px solid #86efac;}
+  .feedback.err{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;}
+  .feedback.warn{background:#fef3c7;color:#b45309;border:1px solid #fcd34d;}
+  .feedback b{font-weight:900;}
+
+  /* ===== 主區 ===== */
+  .main{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+  @media (max-width:760px){ .main{grid-template-columns:1fr;} }
+
+  .fig-card{display:flex;flex-direction:column;gap:10px;}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;font-size:13px;color:#475569;margin-top:8px;}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-2px;}
+  .sw.purple{background:rgba(124,58,237,.35);border:1.5px solid var(--purple);}
+  .sw.white{background:#fff;border:1.5px solid #475569;}
+
+  /* ===== 兩階段圖示 ===== */
+  .stage-title{
+    text-align:center;font-size:13px;font-weight:700;color:#475569;
+    margin:4px 0 6px;line-height:2.0;
+  }
+  .stage-title b{color:#6d28d9;}
+  .stage-title .circled{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:50%;background:#ede9fe;color:#6d28d9;
+    font-size:12px;font-weight:900;margin-right:5px;vertical-align:-3px;
+  }
+  .stage{margin:0;}
+
+  .merge-bar{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    margin:12px 0;padding:6px 0;
+    font-size:13.5px;font-weight:800;color:#8b5cf6;
+    border-top:1px dashed #ddd6fe;border-bottom:1px dashed #ddd6fe;
+  }
+  .merge-bar .arrow{
+    display:inline-block;font-size:17px;line-height:1;
+    animation:bounce 1.4s ease-in-out infinite;
+  }
+  @keyframes bounce{
+    0%,100%{transform:translateY(0);}
+    50%{transform:translateY(4px);}
+  }
+
+  .answer-line{
+    display:none;text-align:center;font-size:16px;font-weight:800;
+    color:#4c1d95;background:#f5f3ff;border:1px solid #ddd6fe;
+    border-radius:12px;padding:14px 16px;margin:12px auto 0;max-width:400px;
+    line-height:2.0;letter-spacing:.3px;
+  }
+  .answer-line.show{display:block;animation:pop .22s ease;}
+
+  /* ===== 步驟 ===== */
+  .steps-card h2{font-size:16px;margin:0 0 14px;color:#334155;letter-spacing:.5px;}
+  .step{display:flex;gap:10px;margin-bottom:13px;align-items:flex-start;}
+  .step .num{
+    flex:0 0 24px;height:24px;border-radius:50%;
+    background:#e0e7ff;color:#4338ca;font-size:13px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;margin-top:2px;
+  }
+  .step p{margin:0;font-size:14.5px;line-height:2.0;color:#334155;}
+  .step b{color:#6d28d9;}
+  .step.final p{
+    background:linear-gradient(135deg,#f5f3ff,#ede9fe);
+    border:1px solid #ddd6fe;border-radius:12px;padding:10px 12px;color:#4c1d95;
+  }
+  .step.final b{color:#6d28d9;}
+  .step.final .num{background:#ede9fe;color:#6d28d9;margin-top:6px;}
+  .hint-empty{margin:0;font-size:14px;color:#94a3b8;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>分數 × 整數 圖示器</h1>
+  <p class="sub">
+    輸入一個分數和一個整數。<b>上段</b>畫出整數個數的長方形，每個都是同一個分數；<br>
+    <b>下段</b>把所有塗色小格裝進新長方形：<b>每個長方形 = 1</b>，平均分成 <b>分母</b> 那麼多格，<b>塗色部分就是答案</b>。<br>
+    若答案是整數，請把分母填 <b>1</b>。
+  </p>
+
+  <!-- 題目 + 答案 -->
+  <div class="card expr-card">
+    <div class="frac-input">
+      <input id="a" type="number" min="1" max="12" inputmode="numeric" placeholder="?" aria-label="分數的分子">
+      <div class="line"></div>
+      <input id="b" type="number" min="1" max="12" inputmode="numeric" placeholder="?" aria-label="分數的分母">
+    </div>
+    <div class="op">×</div>
+    <div class="int-input">
+      <input id="n" type="number" min="1" max="12" inputmode="numeric" placeholder="?" aria-label="整數">
+      <span class="int-label">整數</span>
+    </div>
+    <div class="op">=</div>
+    <div class="frac-input ans">
+      <input id="ansN" type="number" min="1" max="999" inputmode="numeric" placeholder="?" aria-label="答案的分子">
+      <div class="line"></div>
+      <input id="ansD" type="number" min="1" max="999" inputmode="numeric" placeholder="?" aria-label="答案的分母">
+    </div>
+  </div>
+
+  <!-- 操作按鈕 -->
+  <div class="actions">
+    <button id="checkBtn" class="btn btn-primary" type="button">檢查答案</button>
+    <button id="resetBtn" class="btn btn-ghost" type="button">重設</button>
+  </div>
+
+  <!-- 回饋 -->
+  <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+
+  <!-- 圖 + 步驟 -->
+  <div class="main">
+    <div class="card fig-card">
+      <div id="figure"></div>
+      <div id="answerLine" class="answer-line"></div>
+      <div class="legend">
+        <span><i class="sw purple"></i>塗色部分（每個小格 = 1/b）</span>
+        <span><i class="sw white"></i>未塗色部分</span>
+      </div>
+    </div>
+
+    <div class="card steps-card">
+      <h2>解題步驟</h2>
+      <div id="steps"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const aEl=$('a'), bEl=$('b'), nEl=$('n');
+  const ansN=$('ansN'), ansD=$('ansD');
+  const figure=$('figure'), stepsEl=$('steps'), fb=$('feedback');
+  const checkBtn=$('checkBtn'), resetBtn=$('resetBtn');
+  const answerLine=$('answerLine');
+
+  const MAXV = 12;
+  let solved = false;
+
+  const FONT = "'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif";
+
+  const gcd = (x, y) => y ? gcd(y, x % y) : x;
+
+  /* ==========================================================
+     HTML 分數：分子在上、分數線、分母在下
+     ========================================================== */
+  function htmlFraction(num, den){
+    return `<span class="frac"><span class="num">${num}</span><span class="den">${den}</span></span>`;
+  }
+  function htmlFracOrInt(num, den){
+    if (den === 1) return String(num);
+    return htmlFraction(num, den);
+  }
+  function htmlMixed(whole, num, den){
+    if (num === 0) return String(whole);
+    return `<span class="mixed"><span class="whole">${whole}</span>${htmlFraction(num, den)}</span>`;
+  }
+
+  /* ==========================================================
+     SVG 分數：分子在上、分數線、分母在下
+     ========================================================== */
+  function svgFraction(cx, cy, num, den, color, fontSize){
+    const fs = fontSize;
+    const gap = fs * 0.75;
+    const numStr = String(num), denStr = String(den);
+    const maxLen = Math.max(numStr.length, denStr.length);
+    const lineHalf = Math.max(fs * 0.55, maxLen * fs * 0.34);
+    const strokeW = Math.max(1.3, fs * 0.1);
+
+    let out = '';
+    out += `<text x="${cx.toFixed(1)}" y="${(cy - gap).toFixed(1)}"
+              text-anchor="middle" dominant-baseline="central"
+              font-size="${fs.toFixed(1)}" font-weight="800" fill="${color}"
+              font-family="${FONT}">${numStr}</text>`;
+    out += `<line x1="${(cx - lineHalf).toFixed(1)}" y1="${cy.toFixed(1)}"
+              x2="${(cx + lineHalf).toFixed(1)}" y2="${cy.toFixed(1)}"
+              stroke="${color}" stroke-width="${strokeW.toFixed(2)}" stroke-linecap="round"/>`;
+    out += `<text x="${cx.toFixed(1)}" y="${(cy + gap).toFixed(1)}"
+              text-anchor="middle" dominant-baseline="central"
+              font-size="${fs.toFixed(1)}" font-weight="800" fill="${color}"
+              font-family="${FONT}">${denStr}</text>`;
+    return out;
+  }
+  function svgFracOrInt(cx, cy, num, den, color, fontSize){
+    if (den === 1){
+      return `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}"
+                text-anchor="middle" dominant-baseline="central"
+                font-size="${fontSize.toFixed(1)}" font-weight="800" fill="${color}"
+                font-family="${FONT}">${num}</text>`;
+    }
+    return svgFraction(cx, cy, num, den, color, fontSize);
+  }
+
+  /* ---------- 取值 ---------- */
+  function toInt(el, max){
+    const v = parseInt(el.value, 10);
+    if (!Number.isFinite(v) || v < 1) return null;
+    return Math.min(v, max);
+  }
+  function topicNum(el){ return toInt(el, MAXV); }
+  function ansNum(el){ return toInt(el, 999); }
+
+  function getTopic(){
+    let a = topicNum(aEl), b = topicNum(bEl), n = topicNum(nEl);
+    if (a === null || b === null || n === null) return null;
+    a = Math.min(a, b);
+    return { a, b, n };
+  }
+
+  function normalizeTopicInputs(){
+    const a = topicNum(aEl), b = topicNum(bEl), n = topicNum(nEl);
+    if (a !== null) aEl.value = a;
+    if (b !== null) bEl.value = b;
+    if (n !== null) nEl.value = n;
+    if (a !== null && b !== null && a > b) aEl.value = b;
+  }
+
+  /* ---------- 回饋 ---------- */
+  function showFB(type, msg){
+    fb.className = 'feedback show ' + type;
+    fb.innerHTML = msg;
+  }
+  function hideFB(){
+    fb.className = 'feedback';
+    fb.innerHTML = '';
+  }
+
+  /* ---------- 空白圖板 ---------- */
+  function blankHTML(){
+    const S = 340;
+    return `<svg viewBox="-10 -10 ${S + 20} ${S + 20}" width="100%"
+              style="display:block;max-width:400px;margin:0 auto" role="img"
+              aria-label="尚未輸入分數與整數">
+      <rect x="0" y="0" width="${S}" height="${S}" rx="8"
+            fill="#ffffff" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="9 7"/>
+      <text x="${S/2}" y="${S/2 - 12}" text-anchor="middle"
+            font-size="18" font-weight="700" fill="#94a3b8"
+            font-family="${FONT}">請輸入分數與整數</text>
+      <text x="${S/2}" y="${S/2 + 18}" text-anchor="middle"
+            font-size="14" font-weight="500" fill="#cbd5e1"
+            font-family="${FONT}">圖示會在這裡出現</text>
+    </svg>`;
+  }
+
+  /* =========================================================
+     上段：n 個獨立長方形，每個表示 a/b（上下分數）
+     ========================================================= */
+  function buildProductsSVG(a, b, n){
+    const colMap = {1:1,2:2,3:3,4:2,5:3,6:3,7:4,8:4,9:3,10:4,11:4,12:4};
+    const cols   = colMap[n] || 4;
+    const rows   = Math.ceil(n / cols);
+    const gap    = 10;
+    const availW = 340;
+
+    let rectW = (availW - (cols - 1) * gap) / cols;
+    if (n === 1) rectW = Math.min(rectW, 170);
+    const rectH  = Math.max(26, rectW * 0.55);
+
+    // 分數標籤尺寸
+    const fs = Math.max(10, Math.min(12, rectW / 6));
+    const labelH = Math.max(30, fs * 2.5 + 6);
+    const rowH   = rectH + labelH;
+
+    const totalW = cols * rectW + (cols - 1) * gap;
+    const totalH = rows * rowH + (rows - 1) * gap;
+
+    const vbW  = Math.max(totalW + 16, 340);
+    const vbH  = totalH + 16;
+    const offX = (vbW - totalW) / 2;
+    const offY = 8;
+
+    const cellW  = rectW / b;
+    const colorW = a * cellW;
+
+    let svg = `<svg viewBox="0 0 ${vbW} ${vbH}" width="100%"
+                 style="display:block;max-width:${vbW}px;margin:0 auto"
+                 role="img" aria-label="${n} 個 ${a}/${b} 的長方形">`;
+
+    for (let i = 0; i < n; i++){
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const itemsInRow = Math.min(cols, n - r * cols);
+      const rowW   = itemsInRow * rectW + (itemsInRow - 1) * gap;
+      const startX = offX + (totalW - rowW) / 2;
+      const x = startX + c * (rectW + gap);
+      const y = offY + r * (rowH + gap);
+
+      // 白底
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                width="${rectW.toFixed(1)}" height="${rectH.toFixed(1)}" fill="#ffffff"/>`;
+
+      // 塗色（左側 a 份）
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                width="${colorW.toFixed(2)}" height="${rectH.toFixed(1)}"
+                fill="#7c3aed" opacity="0.45"/>`;
+
+      // 內部格線
+      svg += `<g stroke="#475569" stroke-width="0.9" opacity="0.5">`;
+      for (let j = 1; j < b; j++){
+        const lx = (x + j * cellW).toFixed(2);
+        svg += `<line x1="${lx}" y1="${y.toFixed(1)}"
+                  x2="${lx}" y2="${(y + rectH).toFixed(1)}"/>`;
+      }
+      svg += `</g>`;
+
+      // 塗色高亮框
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                width="${colorW.toFixed(2)}" height="${rectH.toFixed(1)}"
+                fill="none" stroke="#7c3aed" stroke-width="1.6"/>`;
+
+      // 外框
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                width="${rectW.toFixed(1)}" height="${rectH.toFixed(1)}"
+                fill="none" stroke="#0f172a" stroke-width="1.8"/>`;
+
+      // 下方分數 a/b（上下書寫）
+      const cx = x + rectW / 2;
+      const labelCY = y + rectH + labelH / 2;
+      svg += svgFracOrInt(cx, labelCY, a, b, '#6d28d9', fs);
+    }
+
+    svg += `</svg>`;
+    return svg;
+  }
+
+  /* =========================================================
+     下段：答案圖
+     每個長方形 = 1，分成 q 格（q = 分母）
+     前 G 個完整長方形標「1」，最後一個標「R/q」（上下分數）
+     ========================================================= */
+  function buildAnswerSVG(p, q){
+    const G = Math.floor(p / q);
+    const R = p % q;
+    const N = G + (R > 0 ? 1 : 0);
+    if (N === 0) return '';
+
+    const gap    = 14;
+    const availW = 340;
+
+    let cols;
+    if (N <= 1)      cols = 1;
+    else if (N <= 2) cols = 2;
+    else if (N <= 6) cols = 3;
+    else             cols = 4;
+
+    let rectW = (availW - (cols - 1) * gap) / cols;
+    rectW = Math.min(rectW, 160);
+    const rectH = Math.max(36, Math.min(rectW * 0.55, 72));
+
+    // 分數標籤尺寸
+    const fs = Math.max(11, Math.min(14, rectW / 5));
+    const labelH = Math.max(34, fs * 2.5 + 6);
+
+    const rows  = Math.ceil(N / cols);
+    const totalW = cols * rectW + (cols - 1) * gap;
+    const totalH = rows * (rectH + labelH) + (rows - 1) * gap;
+
+    const vbW  = Math.max(totalW + 20, 340);
+    const vbH  = totalH + 20;
+    const offX = (vbW - totalW) / 2;
+    const offY = 10;
+
+    const cellW = rectW / q;
+
+    let svg = `<svg viewBox="0 0 ${vbW} ${vbH}" width="100%"
+                 style="display:block;max-width:${vbW}px;margin:0 auto"
+                 role="img" aria-label="答案圖：每 ${q} 格裝成一個長方形 = 1">`;
+
+    for (let i = 0; i < N; i++){
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const itemsInRow = Math.min(cols, N - r * cols);
+      const rowW   = itemsInRow * rectW + (itemsInRow - 1) * gap;
+      const startX = offX + (totalW - rowW) / 2;
+      const x = startX + c * (rectW + gap);
+      const y = offY + r * (rectH + labelH + gap);
+
+      const isLast = (R > 0 && i === G);
+      const filled = isLast ? R : q;
+
+      // 白底
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                width="${rectW.toFixed(1)}" height="${rectH.toFixed(1)}"
+                fill="#ffffff" rx="2"/>`;
+
+      // 塗色部分
+      if (filled > 0){
+        svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                  width="${(filled * cellW).toFixed(2)}" height="${rectH.toFixed(1)}"
+                  fill="#7c3aed" opacity="0.5" rx="2"/>`;
+      }
+
+      // 格線
+      if (q > 1){
+        svg += `<g stroke="#475569" stroke-width="0.9" opacity="0.5">`;
+        for (let j = 1; j < q; j++){
+          const lx = (x + j * cellW).toFixed(2);
+          svg += `<line x1="${lx}" y1="${y.toFixed(1)}"
+                    x2="${lx}" y2="${(y + rectH).toFixed(1)}"/>`;
+        }
+        svg += `</g>`;
+      }
+
+      // 塗色高亮框
+      if (filled > 0){
+        svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                  width="${(filled * cellW).toFixed(2)}" height="${rectH.toFixed(1)}"
+                  fill="none" stroke="#7c3aed" stroke-width="1.8" rx="2"/>`;
+      }
+
+      // 外框
+      svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+                width="${rectW.toFixed(1)}" height="${rectH.toFixed(1)}"
+                fill="none"
+                stroke="${isLast ? '#7c3aed' : '#0f172a'}"
+                stroke-width="${isLast ? 2.2 : 1.8}" rx="2"/>`;
+
+      // 下方標籤：完整 → 「1」；部分 → 「R/q」上下分數
+      const cx = x + rectW / 2;
+      const labelCY = y + rectH + labelH / 2;
+      if (isLast){
+        svg += svgFraction(cx, labelCY, R, q, '#c026d3', fs);
+      } else {
+        svg += `<text x="${cx.toFixed(1)}" y="${labelCY.toFixed(1)}"
+                  text-anchor="middle" dominant-baseline="central"
+                  font-size="${fs.toFixed(1)}" font-weight="800" fill="#6d28d9"
+                  font-family="${FONT}">1</text>`;
+      }
+    }
+
+    svg += `</svg>`;
+    return svg;
+  }
+
+  /* ---------- 繪圖主控 ---------- */
+  function render(){
+    const t = getTopic();
+    answerLine.className = 'answer-line';
+    answerLine.innerHTML = '';
+
+    if (!t){
+      figure.innerHTML = blankHTML();
+      return;
+    }
+
+    const { a, b, n } = t;
+    const p = a * n, q = b;
+    const g = gcd(p, q), rp = p / g, rq = q / g;
+    const answerText = (rq === 1) ? String(rp) : rp + '/' + rq;
+
+    let html = '';
+
+    /* ① 乘法圖：n 個 a/b 長方形 */
+    html += `<div class="stage-title">
+      <span class="circled">1</span>畫出 <b>${n}</b> 個 ${htmlFraction(a, b)} 的長方形
+    </div>`;
+    html += `<div class="stage">${buildProductsSVG(a, b, n)}</div>`;
+
+    /* 箭頭 */
+    html += `<div class="merge-bar">
+      <span class="arrow">↓</span> 把每個長方形的塗色小格裝進新長方形
+    </div>`;
+
+    /* ② 答案圖 */
+    const title2 = solved
+      ? `<span class="circled">2</span>答案圖：每個長方形 = <b>1</b>，分成 <b>${q}</b> 格，塗色 <b>${p}</b> 格`
+      : `<span class="circled">2</span>每個長方形 = <b>1</b>，分成 <b>${q}</b> 格；數一數塗色共有幾格？`;
+    html += `<div class="stage-title">${title2}</div>`;
+    html += `<div class="stage">${buildAnswerSVG(p, q)}</div>`;
+
+    figure.innerHTML = html;
+
+    /* 答對後在圖下方顯示完整算式 */
+    if (solved){
+      let txt = `${htmlFraction(a, b)} × ${n} = ${htmlFracOrInt(p, q)}`;
+      if (g > 1){
+        if (rq === 1){
+          txt += ` = ${rp}`;
+        } else {
+          txt += ` = ${htmlFraction(rp, rq)}`;
+        }
+      }
+      if (rq > 1 && rp > rq){
+        const wh = Math.floor(rp / rq), rem = rp % rq;
+        txt += ` = ${htmlMixed(wh, rem, rq)}`;
+      }
+      answerLine.innerHTML = txt;
+      answerLine.classList.add('show');
+    }
+  }
+
+  /* ---------- 步驟 ---------- */
+  function stepHTML(num, text, cls){
+    return `<div class="step ${cls || ''}"><span class="num">${num}</span><p>${text}</p></div>`;
+  }
+
+  function updateSteps(){
+    const t = getTopic();
+    if (!t){
+      stepsEl.innerHTML = '<p class="hint-empty">輸入完整的分數和整數後，這裡會顯示解題步驟。</p>';
+      return;
+    }
+
+    const { a, b, n } = t;
+    const p = a * n, q = b;
+    const g = gcd(p, q), rp = p / g, rq = q / g;
+    const G = Math.floor(p / q);
+    const R = p % q;
+
+    let html = '';
+    html += stepHTML(1,
+      `一個長方形平均分成 <b>${b}</b> 份，塗色 <b>${a}</b> 份，表示 ${htmlFraction(a, b)}。`);
+    html += stepHTML(2,
+      `乘上整數 <b>${n}</b>，就是畫出 <b>${n}</b> 個相同的長方形，也就是 <b>${n}</b> 個 ${htmlFraction(a, b)} 相加。`);
+
+    if (solved){
+      html += stepHTML(3,
+        `把每個長方形的塗色小格收集起來，共 <b>${a} × ${n} = ${p}</b> 個小格，每個小格是 ${htmlFraction(1, b)}。` +
+        `每 <b>${b}</b> 格剛好裝滿一個長方形（也就是 <b>1</b>）：` +
+        `共裝滿 <b>${G}</b> 個長方形` +
+        (R > 0 ? `，最後一個長方形塗 <b>${R}</b> 格` : '') + `。`);
+
+      let s = `所以 ${htmlFraction(a, b)} × ${n} = ${htmlFracOrInt(p, b)}`;
+      if (R > 0){
+        s += `，也就是 <b>${G} 又 ${htmlFraction(R, b)}</b>`;
+      } else {
+        s += `，也就是整數 <b>${G}</b>`;
+      }
+      if (g > 1){
+        s += `；約分後是 ${htmlFracOrInt(rp, rq)}。`;
+      } else {
+        s += `，已是最簡分數 ${htmlFracOrInt(rp, rq)}。`;
+      }
+      html += stepHTML('✓', s, 'final');
+    } else {
+      html += stepHTML(3,
+        `把全部塗色的小格收集起來，裝進新長方形：每 <b>${b}</b> 格裝滿一個長方形（=1）。` +
+        `數一數裝滿幾個長方形？最後還剩幾格？`);
+      html += stepHTML(4,
+        `<b>提示：</b>裝滿的長方形個數就是答案的整數部分；剩下幾格就是分數部分的分子，分母還是 <b>${b}</b>。`);
+    }
+
+    stepsEl.innerHTML = html;
+  }
+
+  /* ---------- 檢查答案 ---------- */
+  function check(){
+    const t = getTopic();
+    if (!t){
+      showFB('err', '請先在上方輸入完整的分數和整數。');
+      return;
+    }
+    const an = ansNum(ansN), ad = ansNum(ansD);
+    if (an === null || ad === null){
+      showFB('err', '請輸入你的答案（分子和分母都要填；若是整數，分母請填 1）。');
+      return;
+    }
+
+    const { a, b, n } = t;
+    const p = a * n, q = b;
+    const g = gcd(p, q), rp = p / g, rq = q / g;
+
+    const equal   = (an * q === ad * p);
+    const reduced = (gcd(an, ad) === 1);
+
+    const answerHTML = (rq === 1) ? String(rp) : htmlFraction(rp, rq);
+
+    if (equal && reduced){
+      solved = true;
+      showFB('ok', `✓ 正確！ ${htmlFraction(a, b)} × ${n} = <b>${answerHTML}</b>`);
+      render();
+      updateSteps();
+    } else if (equal && !reduced){
+      solved = false;
+      showFB('warn', '答案的數值正確，但還沒有約簡。請把答案約簡至最簡分數，再按一次「檢查答案」。');
+      render();
+      updateSteps();
+    } else {
+      solved = false;
+      showFB('err', '✗ 錯誤，請再試一次。（提示：分子 × 整數，分母不變；對照下段答案圖數一數）');
+      render();
+      updateSteps();
+    }
+  }
+
+  /* ---------- 重設 ---------- */
+  function reset(){
+    [aEl, bEl, nEl, ansN, ansD].forEach(el => { el.value = ''; });
+    solved = false;
+    hideFB();
+    render();
+    updateSteps();
+    aEl.focus();
+  }
+
+  /* ---------- 事件 ---------- */
+  function bindTopic(el, max){
+    el.addEventListener('input', () => {
+      const v = parseInt(el.value, 10);
+      if (Number.isFinite(v) && v > max) el.value = max;
+      solved = false;
+      hideFB();
+      render();
+      updateSteps();
+    });
+    el.addEventListener('change', () => { normalizeTopicInputs(); render(); updateSteps(); });
+    el.addEventListener('blur',   () => { normalizeTopicInputs(); render(); updateSteps(); });
+  }
+  bindTopic(aEl, MAXV);
+  bindTopic(bEl, MAXV);
+  bindTopic(nEl, MAXV);
+
+  [ansN, ansD].forEach(el => {
+    el.addEventListener('input', () => {
+      const v = parseInt(el.value, 10);
+      if (Number.isFinite(v) && v > 999) el.value = 999;
+      solved = false;
+      hideFB();
+      render();
+      updateSteps();
+    });
+  });
+
+  checkBtn.addEventListener('click', check);
+  resetBtn.addEventListener('click', reset);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT'){
+      e.preventDefault();
+      check();
+    }
+  });
+
+  /* ---------- 初始化 ---------- */
+  render();
+  updateSteps();
+})();
+</script>
+</body>
+</html>
